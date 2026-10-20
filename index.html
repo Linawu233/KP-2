@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>COC 战斗期望计算器 v14</title>
+<title>COC 战斗期望计算器 </title>
 <style>
   :root {
     --bg: #eef2f6;
@@ -36,6 +36,8 @@
   .section-title::before { content: ''; display: block; width: 6px; height: 18px; border-radius: 3px; background: var(--accent-blue); }
   .output-section { background: transparent; box-shadow: none; padding: 0; }
   .output-section .section-title::before { background: var(--accent-pink); }
+
+  .tip-text { font-size: 12px; color: var(--accent-pink); margin-bottom: 12px; display: flex; align-items: center; gap: 4px;}
 
   input[type="text"], input[type="number"], select {
     width: 100%; background: var(--panel-inner); border: 1px solid transparent; color: var(--text-main);
@@ -150,7 +152,7 @@
 <div class="wrap">
   <div class="header">
     <h1>🎲 COC 战斗期望计算器</h1>
-    <p>精确计算 · 修复数值溢出 · 完美对抗机制</p>
+    <p>精确计算 · 完美对抗机制 · 绝无溢出</p>
   </div>
 
   <div class="section">
@@ -158,11 +160,11 @@
     <div class="global-config">
       <div class="field">
         <label>期望战斗轮数 (T)</label>
-        <input id="rounds" type="number" value="4" min="1">
+        <input id="rounds" type="number" value="5" min="1">
       </div>
       <div class="field">
         <label>对玩家造成的总伤害 (D)</label>
-        <input id="totalDamage" type="number" value="60" min="1">
+        <input id="totalDamage" type="number" value="210" min="1">
       </div>
       <div class="field">
         <label>怪物 HP 难度系数</label>
@@ -187,13 +189,14 @@
       </div>
       
       <label class="switch-wrap" style="border: 1px solid var(--accent-pink); background: #fffafb;">
-        <input type="checkbox" id="opposedCheck" onchange="toggleOpposed()">
+        <input type="checkbox" id="opposedCheck" onchange="toggleOpposed()" checked>
         <span>开启对抗规则</span>
-        <span class="switch-desc">怪物默认使用最高技能反击</span>
+        <span class="switch-desc">自动使用双方最高技能反击</span>
       </label>
     </div>
 
     <div class="section-title">🏃 调查员列表</div>
+    <div class="tip-text">💡 提示：如果玩家携带了多种武器，请统一填入期望伤害最高的那一把，以计算最坏情况。</div>
     <div class="list-container" id="playerList"></div>
     <button class="btn-add" onclick="addPlayerBtn(event)">+ 添加调查员</button>
 
@@ -211,7 +214,7 @@
     <div class="initiative-board" id="initiativeList"></div>
     <div class="summary-cards" id="summaryCards"></div>
 
-    <div class="section-title" style="margin-top: 32px;">📋 怪物主回合技能配置</div>
+    <div class="section-title" style="margin-top: 32px;">📋 怪物配置方案</div>
     <div id="patternsContainer"></div>
   </div>
 </div>
@@ -275,7 +278,7 @@ function getEffectiveHitRate(basePct, netDice) {
   return prob;
 }
 
-// 🆕 修复：严格返回 0~1 的概率，彻底杜绝数值爆炸
+// COC 7版 对抗规则精算
 function getOpposedResult(skillAtt, skillDef, isDodge) {
   if (skillAtt <= 0) return { attWin: 0, defWin: 1 };
   if (skillDef <= 0) return { attWin: 1, defWin: 0 };
@@ -348,7 +351,7 @@ function getClosestHPDice(targetAvg) {
 
 let playerIdCounter = 0;
 let monsterIdCounter = 0;
-let isOpposedOn = false;
+let isOpposedOn = true;
 
 function toggleOpposed() {
   isOpposedOn = document.getElementById('opposedCheck').checked;
@@ -394,7 +397,7 @@ function addPlayer(dmg='1D6', hit=60, hp=12, att=1, dex=50, ready=false, defType
       </div>
     </div>
     <div class="field defense-ele" style="display:${isOpposedOn?'flex':'none'}">
-      <label>防御策略</label>
+      <label>被怪攻击时策略</label>
       <select class="p-def-type">
         <option value="dodge" ${defType==='dodge'?'selected':''}>闪避</option>
         <option value="fight" ${defType==='fight'?'selected':''}>反击</option>
@@ -473,7 +476,8 @@ function toggleOutnumbered(){
     document.getElementById('outnumberedCheck').checked ? 'grid' : 'none';
 }
 
-function generateSkillPatterns(targetDPR, effHit1, effHit2, maxActions, armor){
+// 核心匹配函数：同时计算主动输出与反击输出
+function generateSkillPatterns(targetDPR, activeHit1, activeHit2, maxActions, armor, counterFactor) {
   const results = [];
   const combos = [];
   for(let n1=0; n1<=maxActions; n1++){
@@ -485,17 +489,29 @@ function generateSkillPatterns(targetDPR, effHit1, effHit2, maxActions, armor){
 
   for(const combo of combos){
     let best = null;
-    const validCombos = effHit2 <= 0 ? combos.filter(c => c.n2 === 0) : combos;
+    const validCombos = activeHit2 <= 0 ? combos.filter(c => c.n2 === 0) : combos;
     for(const c of validCombos) {
       if(c !== combo) continue;
       for(const e1 of DICE_POOL){
         if(combo.n2 === 0){
-          const total = combo.n1 * effHit1 * Math.max(0, e1.avg - armor);
+          const dmg1 = Math.max(0, e1.avg - armor);
+          const activeDmg = combo.n1 * activeHit1 * dmg1;
+          // 怪物反击伤害（用技能1的伤害面板）
+          const counterDmg = counterFactor * dmg1;
+          const total = activeDmg + counterDmg;
+          
           const err = Math.abs(total - targetDPR);
           if(!best || err < best.err) best = {e1, e2:null, total, err, penalty:0};
         } else {
           for(const e2 of DICE_POOL){
-            const total = combo.n1 * effHit1 * Math.max(0, e1.avg - armor) + combo.n2 * effHit2 * Math.max(0, e2.avg - armor);
+            const dmg1 = Math.max(0, e1.avg - armor);
+            const dmg2 = Math.max(0, e2.avg - armor);
+            const activeDmg = combo.n1 * activeHit1 * dmg1 + combo.n2 * activeHit2 * dmg2;
+            
+            // 默认怪物反击使用面板上最高的技能
+            const counterDmg = counterFactor * Math.max(dmg1, dmg2);
+            const total = activeDmg + counterDmg;
+            
             const err = Math.abs(total - targetDPR);
             const boring = e1.expr === e2.expr && combo.n1 > 0 && combo.n2 > 0;
             const penalty = boring ? 1000 : 0;
@@ -572,23 +588,12 @@ function calc(){
 
   let playerDPS = 0;
   let totalPlayerHP = 0;
-  let playerCounterDamageTotal = 0; // 玩家反击对怪物造成的伤害
-  let monsterCounterDmgTotal = 0;   // 怪物反击对玩家造成的伤害
   const initiativeList = [];
-
-  // 取全场怪物最高技能命中作为默认反击值
+  
+  // 怪物默认反击技能（全场最高命中）
   const maxMonsterHit = M > 0 ? Math.max(...monsters.map(m => Math.max(m.hit1, m.hit2))) : 0;
 
-  // 计算怪物反击对玩家的伤害
-  if (isOpposedOn) {
-    players.forEach(p => {
-      const opp = getOpposedResult(p.baseHitPct, maxMonsterHit, false);
-      // 每次攻击，怪物反击成功的概率是 opp.defWin
-      // 怪物单次反击的期望伤害为 (D / T / M)，整场战斗总反击伤害：
-      monsterCounterDmgTotal += p.att * opp.defWin * (D / T / M) * T; 
-    });
-  }
-
+  // 1. 计算玩家输出 (包括主动打怪物，以及怪物打玩家时玩家的反击)
   const playerRowsHTML = players.map((p,i) => {
     let totalHitPct = 0;
     for(let j=0; j<p.att; j++) {
@@ -596,12 +601,24 @@ function calc(){
       let rate = getEffectiveHitRate(p.baseHitPct, netDice);
       
       if(isOpposedOn) {
+         // 玩家打怪物：怪物用最高技能反击
          const opp = getOpposedResult(p.baseHitPct, maxMonsterHit, false);
-         rate = opp.attWin; // 0~1
+         rate = opp.attWin; 
       }
       totalHitPct += rate * 100;
     }
-    const dps = p.dmgAvg * (totalHitPct / 100);
+    let dps = p.dmgAvg * (totalHitPct / 100);
+    
+    // 加上：怪物主动攻击玩家时，如果玩家选择反击，玩家对怪物造成的反伤
+    if(isOpposedOn) {
+       monsters.forEach(m => {
+          if (p.defType === 'fight') {
+             const opp = getOpposedResult(m.hit1, p.defSkill, false);
+             dps += m.att * (1/P) * opp.defWin * p.dmgAvg;
+          }
+       });
+    }
+
     playerDPS += dps;
     totalPlayerHP += p.hp;
     
@@ -627,21 +644,7 @@ function calc(){
     </div>
   `).join('');
 
-  // 计算玩家的反击反伤
-  if (isOpposedOn) {
-    monsters.forEach(m => {
-      players.forEach(p => {
-        if (p.defType === 'fight') {
-          const opp = getOpposedResult(maxMonsterHit, p.defSkill, false); // 怪物攻击，玩家反击
-          // 整场战斗，该怪物受到的期望反伤
-          playerCounterDamageTotal += m.att * (1/P) * opp.defWin * p.dmgAvg * T;
-        }
-      });
-    });
-  }
-
-  const rawMonsterHP_Total = playerDPS * T * diff;
-  const finalMonsterHP_Total = Math.max(0, rawMonsterHP_Total - playerCounterDamageTotal);
+  const monsterHP_Total = playerDPS * T * diff;
   const isTeamWipe = D >= totalPlayerHP;
 
   document.getElementById('summaryCards').innerHTML = `
@@ -651,8 +654,8 @@ function calc(){
     </div>
     <div class="summary-card">
       <div class="title">怪物总 HP 期望</div>
-      <div class="value">${f0(finalMonsterHP_Total)}</div>
-      <div class="desc">总计 ${M} 只，已扣除被反击血量</div>
+      <div class="value">${f0(monsterHP_Total)}</div>
+      <div class="desc">总计 ${M} 只，已计入被玩家反击的血量</div>
     </div>
     <div class="summary-card">
       <div class="title">怪物每轮总伤害</div>
@@ -670,43 +673,45 @@ function calc(){
 
   const patternsContainer = document.getElementById('patternsContainer');
   patternsContainer.innerHTML = '';
-  
-  // 扣除怪物反击后，留给怪物主动输出的总伤害
-  const activeD = Math.max(0, D - monsterCounterDmgTotal);
-  const targetActualDPR_Total = activeD / T;
+
+  const totalPlayerAttPerRound = players.reduce((s, p) => s + p.att, 0);
 
   monsters.forEach((m, idx) => {
-    const targetDPR = targetActualDPR_Total * m.normRatio;
-    const monsterHP = finalMonsterHP_Total * m.normRatio;
+    const targetDPR = (D / T) * m.normRatio;
+    const monsterHP = monsterHP_Total * m.normRatio;
     const hpDice = getClosestHPDice(monsterHP);
     
-    let effHit1 = getEffectiveHitRate(m.hit1, -monsterBonus);
-    let effHit2 = getEffectiveHitRate(m.hit2, -monsterBonus);
+    // 怪物主动打玩家的命中率
+    let activeHit1 = 0, activeHit2 = 0;
+    players.forEach(p => {
+       activeHit1 += getOpposedResult(m.hit1, p.defSkill, p.defType === 'dodge').attWin / P;
+       activeHit2 += getOpposedResult(m.hit2, p.defSkill, p.defType === 'dodge').attWin / P;
+    });
     
-    if(isOpposedOn) {
-       effHit1 = 0;
-       effHit2 = 0;
-       players.forEach(p => {
-          const opp1 = getOpposedResult(m.hit1, p.defSkill, p.defType === 'dodge');
-          const opp2 = getOpposedResult(m.hit2, p.defSkill, p.defType === 'dodge');
-          effHit1 += opp1.attWin / P;
-          effHit2 += opp2.attWin / P;
-       });
-    }
+    // 怪物反击玩家的命中率
+    const counterSkillHit = Math.max(m.hit1, m.hit2);
+    let counterHit = 0;
+    players.forEach(p => {
+       counterHit += getOpposedResult(p.baseHitPct, counterSkillHit, false).defWin / P;
+    });
+    
+    // 计算反击因子：每轮这只怪物会被打几次 * 反击成功率
+    const playerAttPerMonster = totalPlayerAttPerRound / M;
+    const counterFactor = playerAttPerMonster * counterHit;
 
-    const patterns = generateSkillPatterns(targetDPR, effHit1, effHit2, m.att, m.armor);
+    const patterns = generateSkillPatterns(targetDPR, activeHit1, activeHit2, m.att, m.armor, counterFactor);
     
     let patternCardsHTML = patterns.map((p, pIdx) => {
       const isBest = pIdx === 0;
       let skillStr = [];
-      if(p.n1 > 0) skillStr.push(`技能1 (${f1(effHit1*100)}%) 打 ${p.n1} 次: 伤害 ${p.e1.expr}`);
-      if(p.n2 > 0) skillStr.push(`技能2 (${f1(effHit2*100)}%) 打 ${p.n2} 次: 伤害 ${p.e2.expr}`);
+      if(p.n1 > 0) skillStr.push(`技能1 (${f1(activeHit1*100)}%) 打 ${p.n1} 次: 伤害 ${p.e1.expr}`);
+      if(p.n2 > 0) skillStr.push(`技能2 (${f1(activeHit2*100)}%) 打 ${p.n2} 次: 伤害 ${p.e2.expr}`);
       
       return `
         <div class="pattern-card ${isBest?'best':''}">
           <div class="pattern-title">
             <span>${isBest ? '★ 最佳匹配' : '备选方案'}</span>
-            <span class="pattern-badge">主回合伤害: ${f1(p.total)} / 目标 ${f1(targetDPR)}</span>
+            <span class="pattern-badge">总计每轮伤害: ${f1(p.total)} / 目标 ${f1(targetDPR)}</span>
           </div>
           ${skillStr.map(s => {
              const parts = s.split(': ');
@@ -726,7 +731,7 @@ function calc(){
           </div>
         </div>
         <div class="result-body">
-          ${isOpposedOn ? `<p style="font-size:12px; color:var(--text-muted); margin-bottom:12px;">提示：这里配置的是怪物<b>主回合</b>的攻击方案。怪物借机反击造成的伤害已从总伤害中扣除。</p>` : ''}
+          ${isOpposedOn ? `<p style="font-size:12px; color:var(--text-muted); margin-bottom:12px;">提示：显示的“伤害”即为你给怪物设置的技能伤害值。此配置已完美综合了怪物主动攻击和反击所造成的伤害。</p>` : ''}
           ${patternCardsHTML}
         </div>
       </div>
@@ -744,6 +749,7 @@ window.onload = function(){
   addMonster(50, 2, 0, 60, 40, 50);
   addMonster(70, 1, 2, 40, 0, 50);
   toggleOutnumbered();
+  toggleOpposed(); // 默认开启
 };
 </script>
 </body>
