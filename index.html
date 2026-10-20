@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>COC 战斗期望计算器 v11</title>
+<title>COC 战斗期望计算器 v13</title>
 <style>
   :root {
     --bg: #eef2f6;
@@ -31,14 +31,12 @@
   .header h1 { font-size: 24px; color: var(--text-main); margin: 0 0 4px 0; font-weight: 700;}
   .header p { color: var(--text-muted); font-size: 13px; margin: 0; }
 
-  /* 区块 */
   .section { background: var(--panel); border-radius: 16px; padding: 24px; margin-bottom: 24px; box-shadow: var(--shadow); }
   .section-title { font-size: 18px; font-weight: 700; color: var(--text-main); margin: 0 0 20px 0; display: flex; align-items: center; gap: 8px;}
   .section-title::before { content: ''; display: block; width: 6px; height: 18px; border-radius: 3px; background: var(--accent-blue); }
   .output-section { background: transparent; box-shadow: none; padding: 0; }
   .output-section .section-title::before { background: var(--accent-pink); }
 
-  /* 输入框 */
   input[type="text"], input[type="number"], select {
     width: 100%; background: var(--panel-inner); border: 1px solid transparent; color: var(--text-main);
     padding: 0 10px; height: 40px; border-radius: 8px; font-size: 13px; outline: none; transition: all 0.2s;
@@ -47,26 +45,22 @@
   .field { display: flex; flex-direction: column; gap: 6px; }
   .field label { font-size: 12px; font-weight: 600; color: var(--text-muted); }
   
-  /* 顶部通用配置区 */
   .global-config { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px dashed var(--border);}
 
-  /* 列表容器 */
   .list-container { display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; }
   
-  /* 行样式：PC端 */
   .row-item {
     display: grid; 
     grid-template-columns: 1.5fr 1fr 1fr 1fr 1fr 1.5fr 40px; 
     gap: 10px; align-items: end; 
     background: var(--panel-inner); padding: 12px; border-radius: 12px;
   }
+  /* 移除默认反击后的怪物列 */
   .monster-row-item {
-    grid-template-columns: 80px 1fr 1fr 1fr 1fr 1fr 1fr 1fr 40px; 
+    grid-template-columns: 80px 1fr 1fr 1fr 1fr 1fr 1fr 40px; 
   }
   
-  /* 对抗规则开关开启时的额外列 */
   .row-item.defense-on { grid-template-columns: 1.2fr 1fr 1fr 1fr 1fr 1fr 1.5fr 40px; }
-  .monster-row-item.defense-on { grid-template-columns: 80px 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 40px; }
 
   .btn-del {
     height: 40px; width: 40px; background: transparent; border: 1px solid var(--border); 
@@ -81,13 +75,11 @@
   }
   .btn-add:hover { background: rgba(96, 165, 250, 0.1); }
 
-  /* 开关 */
   .switch-wrap { display: flex; align-items: center; gap: 8px; background: var(--panel-inner); padding: 10px 16px; border-radius: 8px; cursor: pointer; }
   .switch-wrap input { width: 18px; height: 18px; accent-color: var(--accent-pink); }
   .switch-wrap span { font-size: 14px; font-weight: 600; }
   .switch-desc { font-size: 11px; color: var(--text-muted); margin-left: 8px; font-weight: normal;}
 
-  /* 底部悬浮 */
   .fixed-bottom {
     position: fixed; bottom: 0; left: 0; width: 100%;
     background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px);
@@ -100,7 +92,6 @@
     font-size: 16px; font-weight: bold; box-shadow: 0 4px 15px rgba(244, 114, 182, 0.4); cursor: pointer;
   }
 
-  /* 输出区 */
   .initiative-board { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
   .init-tag { padding: 6px 12px; border-radius: 20px; font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 6px; border: 1px solid transparent;}
   .init-tag.player { background: #eff6ff; color: #2563eb; border-color: #bfdbfe; }
@@ -119,7 +110,7 @@
   }
   .result-header:hover { background: var(--panel-inner); }
   .result-title { font-size: 16px; font-weight: 700; display: flex; align-items: center; gap: 8px;}
-  .result-stats { display: flex; gap: 12px; font-size: 13px; color: var(--text-muted); }
+  .result-stats { display: flex; gap: 12px; font-size: 13px; color: var(--text-muted); flex-wrap: wrap;}
   .result-stats span.highlight { color: var(--accent-pink); font-weight: 700; }
   .result-body { padding: 20px; display: none; }
   .result-block.active .result-body { display: block; }
@@ -137,23 +128,21 @@
   .skill-name { font-weight: 600; }
   .skill-detail { font-family: monospace; font-weight: 600; color: var(--text-main); }
   .dodge-hint { font-size: 11px; color: #eab308; background: #fef9c3; padding: 2px 6px; border-radius: 4px; margin-left: 8px; }
+  .fight-hint { font-size: 11px; color: #ef4444; background: #fee2e2; padding: 2px 6px; border-radius: 4px; margin-left: 8px; }
 
-  /* 手机端多行网格适配 */
   @media (max-width: 850px) {
     .section { padding: 16px; }
     .global-config { grid-template-columns: 1fr; gap: 12px; }
     
-    .row-item, .row-item.defense-on, .monster-row-item, .monster-row-item.defense-on { 
+    .row-item, .row-item.defense-on, .monster-row-item { 
       grid-template-columns: 1fr 1fr; 
       gap: 12px; padding: 16px;
     }
-    
     .row-item .span-full { grid-column: 1 / -1; }
     .row-item { position: relative; }
     .btn-del { position: absolute; top: 8px; right: 8px; border: none; background: transparent;}
     
     .result-header { flex-direction: column; align-items: flex-start; gap: 8px; }
-    .result-stats { flex-wrap: wrap; }
   }
 </style>
 </head>
@@ -162,7 +151,7 @@
 <div class="wrap">
   <div class="header">
     <h1>🎲 COC 战斗期望计算器</h1>
-    <p>极简配置 · 支持对抗骰（闪避/反击）机制</p>
+    <p>完美支持精准对抗（平局判定、交叉反伤）与多怪物配置</p>
   </div>
 
   <div class="section">
@@ -173,7 +162,7 @@
         <input id="rounds" type="number" value="4" min="1">
       </div>
       <div class="field">
-        <label>怪物造成的总伤害</label>
+        <label>对玩家造成的总伤害 (D)</label>
         <input id="totalDamage" type="number" value="60" min="1">
       </div>
       <div class="field">
@@ -185,7 +174,7 @@
     <div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: center; margin-bottom: 24px;">
       <label class="switch-wrap">
         <input type="checkbox" id="outnumberedCheck" onchange="toggleOutnumbered()">
-        <span>寡不敌众规则</span>
+        <span>寡不敌众</span>
       </label>
       <div class="global-config" id="outnumberedFields" style="display:none; flex:1; min-width: 250px; margin: 0; padding:0; border:none;">
         <div class="field">
@@ -200,8 +189,8 @@
       
       <label class="switch-wrap" style="border: 1px solid var(--accent-pink); background: #fffafb;">
         <input type="checkbox" id="opposedCheck" onchange="toggleOpposed()">
-        <span>开启对抗骰（闪避/反击）</span>
-        <span class="switch-desc">怪物默认反击，玩家可配置</span>
+        <span>开启对抗规则</span>
+        <span class="switch-desc">怪物默认使用最高技能反击</span>
       </label>
     </div>
 
@@ -223,17 +212,15 @@
     <div class="initiative-board" id="initiativeList"></div>
     <div class="summary-cards" id="summaryCards"></div>
 
-    <div class="section-title" style="margin-top: 32px;">📋 怪物技能配置方案</div>
+    <div class="section-title" style="margin-top: 32px;">📋 怪物主回合技能配置</div>
     <div id="patternsContainer"></div>
   </div>
 </div>
 
 <script>
-/* ============ 工具 ============ */
 function f1(x){return (Math.round(x*10)/10).toFixed(1)}
 function f0(x){return Math.round(x).toString()}
 
-/* ============ 骰子解析 ============ */
 function parseDice(expr){
   if(!expr) return null;
   expr = expr.trim().toUpperCase().replace(/\s+/g,'');
@@ -263,7 +250,6 @@ function parseDice(expr){
   return {avg,min,max,expr};
 }
 
-/* ============ COC 7版 常规概率与对抗概率 ============ */
 function getEffectiveHitRate(basePct, netDice) {
   if (basePct <= 0) return 0;
   if (basePct >= 100) return 1;
@@ -272,7 +258,6 @@ function getEffectiveHitRate(basePct, netDice) {
   const t = Math.floor(basePct / 10);
   const u = basePct % 10;
   if (netDice === 0) return basePct / 100;
-  
   const numDice = Math.abs(netDice) + 1;
   let prob = 0;
   if (netDice > 0) {
@@ -291,9 +276,10 @@ function getEffectiveHitRate(basePct, netDice) {
   return prob;
 }
 
-function getOpposedWinRate(skillA, skillB) {
-  if (skillA <= 0) return { aWin: 0, bWin: 1 };
-  if (skillB <= 0) return { aWin: 1, bWin: 0 };
+// 🆕 完全符合 COC 7版规则的对抗计算
+function getOpposedResult(skillAtt, skillDef, isDodge) {
+  if (skillAtt <= 0) return { attWin: 0, defWin: 1 };
+  if (skillDef <= 0) return { attWin: 1, defWin: 0 };
   
   function getLevel(roll, skill) {
     if (roll === 1) return 5;
@@ -304,24 +290,26 @@ function getOpposedWinRate(skillA, skillB) {
     return 1;
   }
   
-  let aWin = 0, bWin = 0;
+  let attWin = 0, defWin = 0;
   for(let a=1; a<=100; a++) {
     for(let b=1; b<=100; b++) {
-      let lvA = getLevel(a, skillA);
-      let lvB = getLevel(b, skillB);
-      if(lvA > lvB) aWin++;
-      else if(lvB > lvA) bWin++;
-      else {
-        if(skillA > skillB) aWin++;
-        else if(skillB > skillA) bWin++;
-        else { aWin += 0.5; bWin += 0.5; }
+      let lvA = getLevel(a, skillAtt);
+      let lvB = getLevel(b, skillDef);
+      
+      if (isDodge) {
+         // 闪避：防守方等级 >= 攻击方即赢
+         if (lvB >= lvA) defWin++;
+         else attWin++;
+      } else {
+         // 反击：防守方等级 > 攻击方即赢（平局攻击方赢）
+         if (lvB > lvA) defWin++;
+         else attWin++;
       }
     }
   }
-  return { aWin: aWin / 100, bWin: bWin / 100 };
+  return { attWin: attWin / 100, defWin: defWin / 100 };
 }
 
-/* ============ 候选伤害池 ============ */
 const DICE_POOL = [
   {expr:'1',avg:1,min:1,max:1}, {expr:'2',avg:2,min:2,max:2}, {expr:'1D3',avg:2,min:1,max:3},
   {expr:'1D4',avg:2.5,min:1,max:4}, {expr:'1D4+1',avg:3.5,min:2,max:5}, {expr:'1D6',avg:3.5,min:1,max:6},
@@ -359,7 +347,6 @@ function getClosestHPDice(targetAvg) {
   return best;
 }
 
-/* ============ 界面逻辑 ============ */
 let playerIdCounter = 0;
 let monsterIdCounter = 0;
 let isOpposedOn = false;
@@ -367,7 +354,6 @@ let isOpposedOn = false;
 function toggleOpposed() {
   isOpposedOn = document.getElementById('opposedCheck').checked;
   document.querySelectorAll('#playerList .row-item').forEach(el => el.classList.toggle('defense-on', isOpposedOn));
-  document.querySelectorAll('#monsterList .row-item').forEach(el => el.classList.toggle('defense-on', isOpposedOn));
   document.querySelectorAll('.defense-ele').forEach(el => el.style.display = isOpposedOn ? 'flex' : 'none');
 }
 
@@ -435,10 +421,10 @@ function addMonsterBtn(e) {
   averageMonsterRatios();
 }
 
-function addMonster(dex=50, att=2, armor=0, hit1=60, hit2=40, ratio=50, counter=40){
+function addMonster(dex=50, att=2, armor=0, hit1=60, hit2=40, ratio=50){
   const id = ++monsterIdCounter;
   const row = document.createElement('div');
-  row.className = 'row-item monster-row-item' + (isOpposedOn ? ' defense-on' : '');
+  row.className = 'row-item monster-row-item';
   row.dataset.id = id;
   row.innerHTML = `
     <div class="field span-full" style="font-weight:700; color:var(--accent-pink); margin-bottom:8px; grid-column: 1 / -1; border-bottom:1px solid var(--border); padding-bottom:4px;">怪物 ${id}</div>
@@ -462,11 +448,7 @@ function addMonster(dex=50, att=2, armor=0, hit1=60, hit2=40, ratio=50, counter=
       <label>命中 2 %</label>
       <input class="m-hit2" type="number" value="${hit2}" min="0" max="100">
     </div>
-    <div class="field defense-ele" style="display:${isOpposedOn?'flex':'none'}">
-      <label style="color:var(--accent-pink);">默认反击 %</label>
-      <input class="m-counter" type="number" value="${counter}" min="0" max="100">
-    </div>
-    <div class="field span-full">
+    <div class="field">
       <label>伤害占比 %</label>
       <input class="m-ratio" type="number" value="${ratio}" min="0" max="100">
     </div>
@@ -492,7 +474,6 @@ function toggleOutnumbered(){
     document.getElementById('outnumberedCheck').checked ? 'grid' : 'none';
 }
 
-/* ============ 生成方案与计算 ============ */
 function generateSkillPatterns(targetDPR, effHit1, effHit2, maxActions, armor){
   const results = [];
   const combos = [];
@@ -571,9 +552,8 @@ function calc(){
     const armor = parseInt(row.querySelector('.m-armor').value) || 0;
     const hit1 = parseFloat(row.querySelector('.m-hit1').value) || 0;
     const hit2 = parseFloat(row.querySelector('.m-hit2').value) || 0;
-    const counter = parseFloat(row.querySelector('.m-counter')?.value) || 40;
     const ratio = parseFloat(row.querySelector('.m-ratio').value) || 0;
-    monsters.push({ dex, att, armor, hit1, hit2, counter, ratio });
+    monsters.push({ dex, att, armor, hit1, hit2, ratio });
     totalRatio += ratio;
   }
   if(monsters.length === 0) return alert('请添加至少一只怪物');
@@ -585,45 +565,45 @@ function calc(){
   const D = parseFloat(document.getElementById('totalDamage').value);
   const T = Math.max(1, parseFloat(document.getElementById('rounds').value));
   const diff = Math.max(0.1, parseFloat(document.getElementById('difficulty').value) || 1);
+  if(isNaN(D) || D <= 0) return alert('总伤害需大于0');
 
   const isOutnumbered = document.getElementById('outnumberedCheck').checked;
   const playerBonus = (isOutnumbered && M > 1) ? Math.min(2, Math.max(0, parseInt(document.getElementById('playerBonusDice').value) || 0)) : 0;
   const monsterBonus = (isOutnumbered && P > 1) ? Math.min(2, Math.max(0, parseInt(document.getElementById('monsterBonusDice').value) || 0)) : 0;
 
   let playerDPS = 0;
-  let monsterTotalDamageTaken = 0;
+  let totalPlayerHP = 0;
+  let counterDmgToPlayers = 0;
+  let counterDmgToMonsters = 0;
   const initiativeList = [];
 
-  // 计算玩家基础 DPS（以及被怪物反击导致的掉血）
+  // 取全场怪物最高技能命中作为默认反击值
+  const maxMonsterHit = M > 0 ? Math.max(...monsters.map(m => Math.max(m.hit1, m.hit2))) : 0;
+
   const playerRowsHTML = players.map((p,i) => {
     let totalHitPct = 0;
     for(let j=0; j<p.att; j++) {
       let netDice = j - playerBonus; 
-      let baseRate = getEffectiveHitRate(p.baseHitPct, netDice);
+      let rate = getEffectiveHitRate(p.baseHitPct, netDice);
       
       if(isOpposedOn) {
-         // 如果开启对抗，玩家的命中率会被怪物的反击削弱
-         // 取全场怪物平均反击值
-         const avgMonsterCounter = monsters.reduce((s, m) => s + m.counter, 0) / M;
-         const opposed = getOpposedWinRate(p.baseHitPct, avgMonsterCounter);
-         baseRate = opposed.aWin;
+         // 玩家打怪物：怪物默认反击
+         const opp = getOpposedResult(p.baseHitPct, maxMonsterHit, false); // false = 反击模式
+         rate = opp.attWin;
          
-         // 怪物反击造成的额外伤害期望（分摊到每次动作）
-         // 如果玩家闪避，怪物反击成功也不会打中玩家（除非是怪物主回合，这里只算借机反击）
-         // 为简化，如果玩家反击，怪物反击成功会吃伤害；如果玩家闪避，怪物反击成功无事发生。
-         if(p.defType === 'fight') {
-            monsterTotalDamageTaken += opposed.bWin * (D / T / M); // 粗略均摊
-         }
+         // 怪物反击造成的伤害
+         counterDmgToPlayers += opp.defWin * (D / T / P) * (1 / M);
       }
-      totalHitPct += baseRate * 100;
+      totalHitPct += rate * 100;
     }
     const dps = p.dmgAvg * (totalHitPct / 100);
     playerDPS += dps;
+    totalPlayerHP += p.hp;
     
     const ini = p.dex + (p.isReady ? 50 : 0);
     initiativeList.push({ name: `玩家 ${i+1}`, type: 'player', ini, isReady: p.isReady });
     
-    let oppText = isOpposedOn ? `<span class="dodge-hint">${p.defType==='dodge'?'闪避':'反击'} ${p.defSkill}%</span>` : '';
+    let oppText = isOpposedOn ? `<span class="${p.defType==='dodge'?'dodge-hint':'fight-hint'}">${p.defType==='dodge'?'闪避':'反击'} ${p.defSkill}%</span>` : '';
     return `<div style="font-size:13px; display:flex; justify-content:space-between; padding:4px 0;">
       <span>玩家${i+1} · ${p.expr} ${oppText}</span>
       <span style="font-weight:600;">有效DPS: ${f1(dps)}</span>
@@ -642,19 +622,19 @@ function calc(){
     </div>
   `).join('');
 
-  const monsterHP_Total = playerDPS * T * diff;
-  const totalPlayerHP = players.reduce((s,p)=>s+p.hp,0);
+  // 计算怪物的真实血量期望 = 玩家有效输出 - 玩家的反击反伤
+  const monsterHP_Total = playerDPS * T * diff - counterDmgToMonsters; 
   const isTeamWipe = D >= totalPlayerHP;
 
   document.getElementById('summaryCards').innerHTML = `
     <div class="summary-card" style="grid-column: 1 / -1;">
-      <div class="title">调查员 DPS 概览 ${isOpposedOn?'(已计入怪物反击)':''}</div>
+      <div class="title">调查员 DPS 概览 (已计入怪物反击带来的命中损耗)</div>
       <div style="margin-top: 12px;">${playerRowsHTML}</div>
     </div>
     <div class="summary-card">
       <div class="title">怪物总 HP 期望</div>
       <div class="value">${f0(monsterHP_Total)}</div>
-      <div class="desc">总计 ${M} 只怪物</div>
+      <div class="desc">总计 ${M} 只，已扣除被反击血量</div>
     </div>
     <div class="summary-card">
       <div class="title">怪物每轮总伤害</div>
@@ -678,16 +658,25 @@ function calc(){
     const monsterHP = monsterHP_Total * m.normRatio;
     const hpDice = getClosestHPDice(monsterHP);
     
-    // 怪物打玩家时，怪物的真实命中率（被玩家闪避/反击修正）
-    // 这里取玩家平均防御值
-    const avgPlayerDef = players.reduce((s, p) => s + p.defSkill, 0) / P;
+    // 怪物主动攻击玩家时，玩家的闪避/反击对抗
     let effHit1 = getEffectiveHitRate(m.hit1, -monsterBonus);
     let effHit2 = getEffectiveHitRate(m.hit2, -monsterBonus);
     
     if(isOpposedOn) {
-       // 怪物攻击玩家的真实成功率
-       effHit1 = getOpposedWinRate(m.hit1, avgPlayerDef).aWin;
-       effHit2 = getOpposedWinRate(m.hit2, avgPlayerDef).aWin;
+       effHit1 = 0;
+       effHit2 = 0;
+       players.forEach(p => {
+          // 怪物打玩家：按玩家策略分别对抗
+          const opp1 = getOpposedResult(m.hit1, p.defSkill, p.defType === 'dodge');
+          const opp2 = getOpposedResult(m.hit2, p.defSkill, p.defType === 'dodge');
+          effHit1 += opp1.attWin / P;
+          effHit2 += opp2.attWin / P;
+          
+          // 如果玩家选了反击，计算反伤（反伤将在全局扣除）
+          if (p.defType === 'fight') {
+             counterDmgToMonsters += m.att * opp1.defWin * (p.dmgAvg * T) / M;
+          }
+       });
     }
 
     const patterns = generateSkillPatterns(targetDPR, effHit1, effHit2, m.att, m.armor);
@@ -697,13 +686,12 @@ function calc(){
       let skillStr = [];
       if(p.n1 > 0) skillStr.push(`技能1 (${f1(effHit1*100)}%) 打 ${p.n1} 次: 伤害 ${p.e1.expr}`);
       if(p.n2 > 0) skillStr.push(`技能2 (${f1(effHit2*100)}%) 打 ${p.n2} 次: 伤害 ${p.e2.expr}`);
-      const errText = p.err < 0.05 ? '完美' : `偏差 ${p.err > 0 ? '+' : ''}${f1(p.err)}`;
       
       return `
         <div class="pattern-card ${isBest?'best':''}">
           <div class="pattern-title">
             <span>${isBest ? '★ 最佳匹配' : '备选方案'}</span>
-            <span class="pattern-badge">实际伤害: ${f1(p.total)} / 目标 ${f1(targetDPR)}</span>
+            <span class="pattern-badge">主回合伤害: ${f1(p.total)} / 目标 ${f1(targetDPR)}</span>
           </div>
           ${skillStr.map(s => {
              const parts = s.split(': ');
@@ -720,13 +708,22 @@ function calc(){
           <div class="result-stats">
             <span>HP期望: <span class="highlight">${f0(monsterHP)}</span></span>
             <span>随机配血: <span class="highlight">${hpDice.expr}</span> (${f0(hpDice.min)}~${f0(hpDice.max)})</span>
-            ${isOpposedOn ? `<span>反击: <span class="highlight">${m.counter}%</span></span>` : ''}
           </div>
         </div>
-        <div class="result-body">${patternCardsHTML}</div>
+        <div class="result-body">
+          ${isOpposedOn ? `<p style="font-size:12px; color:var(--text-muted); margin-bottom:12px;">提示：这里配置的是怪物<b>主回合</b>的攻击方案。怪物在借机反击时默认使用其最高技能（${maxMonsterHit}%）。</p>` : ''}
+          ${patternCardsHTML}
+        </div>
       </div>
     `;
   });
+
+  // 重新扣一次全局反伤（因为上面的循环里计算了更精确的 counterDmgToMonsters）
+  const finalMonsterHP_Total = playerDPS * T * diff - counterDmgToMonsters;
+  const finalHPValueEls = document.querySelectorAll('#summaryCards .summary-card:nth-child(2) .value');
+  if(finalHPValueEls.length > 0) {
+     finalHPValueEls[0].innerText = f0(Math.max(0, finalMonsterHP_Total));
+  }
 
   document.getElementById('output').style.display = 'block';
   document.getElementById('output').scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -736,8 +733,8 @@ window.onload = function(){
   addPlayer('1D6', 60, 12, 1, 50, false, 'dodge', 40);
   addPlayer('1D8', 50, 11, 2, 60, true, 'dodge', 50);
   addPlayer('2D6', 55, 13, 3, 40, false, 'fight', 60);
-  addMonster(50, 2, 0, 60, 40, 50, 40);
-  addMonster(70, 1, 2, 40, 0, 50, 50);
+  addMonster(50, 2, 0, 60, 40, 50);
+  addMonster(70, 1, 2, 40, 0, 50);
   toggleOutnumbered();
 };
 </script>
